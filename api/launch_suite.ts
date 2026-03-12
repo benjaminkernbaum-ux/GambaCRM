@@ -1,11 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { proxyOrMock } from './_proxy';
 
-export default function handler(_req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
-  res.json({
-    ok: true,
-    message: 'Suite launched — CRM Sync + WhatsApp agents active',
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(204).end();
+  }
+
+  const mock = { ok: true, message: 'Suite launched — CRM Sync + WhatsApp agents active' };
+  const { data } = await proxyOrMock('/launch_suite', mock, {
+    method: 'POST',
+    body: JSON.stringify(req.body ?? {}),
   });
+  res.json(data);
 }

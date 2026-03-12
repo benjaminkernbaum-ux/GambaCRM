@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { proxyOrMock } from './_proxy';
 
-// Compute a realistic uptime based on how long since 08:00 today
 function todayUptime(): string {
   const now = new Date();
   const start = new Date(now);
@@ -12,40 +12,36 @@ function todayUptime(): string {
   return `${h}h ${m}m`;
 }
 
-export default function handler(_req: VercelRequest, res: VercelResponse) {
-  const uptime = todayUptime();
+const MOCK = {
+  crm_sync: {
+    id: 'crm_sync', running: true, uptime: '', pid: 12441,
+    lastLog: 'Segment push: DOCS_VERIFIED × 128 → CRM updated',
+  },
+  whatsapp_sync: {
+    id: 'whatsapp_sync', running: true, uptime: '', pid: 12442,
+    lastLog: 'Template PIX_PAYMENT_NUDGE delivered × 23',
+  },
+  wa_reply: {
+    id: 'wa_reply', running: false, uptime: null, pid: null, lastLog: null,
+  },
+  lead_ai: {
+    id: 'lead_ai', running: true, uptime: '', pid: 12443,
+    lastLog: 'Batch scoring complete: 719 leads processed',
+  },
+};
 
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
-  res.json({
-    crm_sync: {
-      id:      'crm_sync',
-      running: true,
-      uptime,
-      pid:     12441,
-      lastLog: 'Segment push: DOCS_VERIFIED × 128 → CRM updated',
-    },
-    whatsapp_sync: {
-      id:      'whatsapp_sync',
-      running: true,
-      uptime,
-      pid:     12442,
-      lastLog: 'Template PIX_PAYMENT_NUDGE delivered × 23',
-    },
-    wa_reply: {
-      id:      'wa_reply',
-      running: false,
-      uptime:  null,
-      pid:     null,
-      lastLog: null,
-    },
-    lead_ai: {
-      id:      'lead_ai',
-      running: true,
-      uptime,
-      pid:     12443,
-      lastLog: 'Batch scoring complete: 719 leads processed',
-    },
-  });
+  const uptime = todayUptime();
+  const mock = {
+    ...MOCK,
+    crm_sync:       { ...MOCK.crm_sync,       uptime },
+    whatsapp_sync:  { ...MOCK.whatsapp_sync,  uptime },
+    lead_ai:        { ...MOCK.lead_ai,        uptime },
+  };
+
+  const { data } = await proxyOrMock('/agents', mock);
+  res.json(data);
 }

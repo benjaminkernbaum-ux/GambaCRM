@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { proxyOrMock } from '../_proxy';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
@@ -11,5 +12,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { agent } = req.body ?? {};
-  res.json({ ok: true, message: `${agent ?? 'agent'} started` });
+  const mock = { ok: true, message: `${agent ?? 'agent'} started` };
+  const { data } = await proxyOrMock('/agent/start', mock, {
+    method: 'POST',
+    body: JSON.stringify(req.body ?? {}),
+  });
+  res.json(data);
 }
