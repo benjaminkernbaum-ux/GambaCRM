@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Globe,
   Trash2,
@@ -9,6 +9,9 @@ import {
   Search,
   Mail,
   MessageCircle,
+  Copy,
+  Check,
+  Phone,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -26,6 +29,11 @@ import {
 function initials(name: string) {
   const parts = name.trim().split(' ');
   return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
+}
+
+function cleanPhone(phone: string) {
+  // "+55 11 99012-3456" → "5511990123456"
+  return phone.replace(/\D/g, '');
 }
 
 function exportCSV(leads: PipelineLead[]) {
@@ -197,6 +205,77 @@ function SegmentDropdown({
   );
 }
 
+// ─── Action Buttons ───────────────────────────────────────────────────────────
+
+function ActionButtons({ lead }: { lead: PipelineLead }) {
+  const [copied, setCopied] = useState(false);
+
+  const openCRM = () => {
+    window.open(`https://crmbeta.gambacrm.com/client/client-profile/${lead.crmId}/`, '_blank');
+  };
+
+  const openWA = () => {
+    const phone = cleanPhone(lead.phone);
+    window.open(`https://wa.me/${phone}`, '_blank');
+  };
+
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(lead.email);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+      const el = document.createElement('textarea');
+      el.value = lead.email;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Open in CRM */}
+      <button
+        onClick={openCRM}
+        className="p-1.5 rounded-lg transition-all hover:bg-white/10"
+        style={{ color: '#6366f1' }}
+        title={`Open in CRM (#${lead.crmId})`}
+      >
+        <Globe size={13} />
+      </button>
+
+      {/* Open WhatsApp */}
+      <button
+        onClick={openWA}
+        className="p-1.5 rounded-lg transition-all"
+        style={{ color: '#25d366' }}
+        title={`Open WhatsApp — ${lead.phone}`}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#25d36618')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <Phone size={13} />
+      </button>
+
+      {/* Copy email */}
+      <button
+        onClick={copyEmail}
+        className="p-1.5 rounded-lg transition-all"
+        style={{ color: copied ? '#10b981' : '#64748b' }}
+        title={`Copy email — ${lead.email}`}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#ffffff10')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        {copied ? <Check size={13} /> : <Copy size={13} />}
+      </button>
+    </div>
+  );
+}
+
 // ─── Table View ───────────────────────────────────────────────────────────────
 
 function TableView({ leads }: { leads: PipelineLead[] }) {
@@ -268,22 +347,7 @@ function TableView({ leads }: { leads: PipelineLead[] }) {
                     <span className="text-[11px] font-mono" style={{ color: '#475569' }}>{lead.updatedAt}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        className="p-1.5 rounded-lg transition-colors hover:bg-white/10"
-                        style={{ color: '#6366f1' }}
-                        title="Open CRM"
-                      >
-                        <Globe size={13} />
-                      </button>
-                      <button
-                        className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
-                        style={{ color: '#ef4444' }}
-                        title="Remove"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    <ActionButtons lead={lead} />
                   </td>
                 </tr>
               );

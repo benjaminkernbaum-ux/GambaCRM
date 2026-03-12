@@ -9,6 +9,15 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, '.') },
   },
   server: {
+    port: 3000,
     hmr: process.env.DISABLE_HMR !== 'true',
+    proxy: {
+      // Forward /api/* → Python dashboard_server.py running on :8080
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });
