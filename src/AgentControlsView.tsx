@@ -1,35 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  PieChart, Pie, Cell as PieCell, Tooltip as ReTooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  Bot, TrendingUp, CheckCircle2, Users, Zap, RefreshCw,
-  ChevronDown, Play, Square, RotateCcw, MessageCircle,
+  Bot, TrendingUp, CheckCircle2, Zap, RefreshCw,
+  Play, Square, RotateCcw, MessageCircle,
   Mail, Database, Brain, Terminal, Wifi, WifiOff, Loader2,
-  ChevronRight,
+  ChevronRight, User, Flame, AlertTriangle,
 } from 'lucide-react';
-import { MOCK_LEADS, AGENTS, SEG_META } from './types';
+import { MOCK_LEADS, SEG_META } from './types';
 import { api, AgentProcess } from './api';
 
-// ─── Per-agent stats ──────────────────────────────────────────────────────────
+// ─── Benjamin's stats (all leads = single agent) ──────────────────────────────
 
-const agentStats = AGENTS.map((agent, idx) => {
-  const leads    = MOCK_LEADS.filter((l) => l.assignedTo === agent);
-  const hot      = leads.filter((l) => l.segment === 'HIGH_INTENT_DEPOSIT' || l.segment === 'PIX_READY').length;
-  const verified = leads.filter((l) => l.segment === 'DOCS_VERIFIED').length;
-  const failed   = leads.filter((l) => l.segment === 'FAILED_DEPOSIT').length;
-  const convRate = leads.length ? ((verified / leads.length) * 100).toFixed(1) : '0.0';
-  const colors   = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f97316', '#64748b'];
-  const topSegs  = {} as Record<string, number>;
-  leads.forEach((l) => { topSegs[l.segment] = (topSegs[l.segment] || 0) + 1; });
-  const topSeg   = Object.entries(topSegs).sort((a, b) => b[1] - a[1])[0];
-  const topMeta  = topSeg ? SEG_META.find((s) => s.key === topSeg[0]) ?? null : null;
-  return {
-    name: agent, total: leads.length, hot, verified, failed, convRate,
-    color: colors[idx % colors.length], topMeta, topCount: topSeg?.[1] ?? 0,
-  };
-}).sort((a, b) => b.total - a.total);
+const myLeads   = MOCK_LEADS; // all leads belong to Benjamin
+const myHot     = myLeads.filter((l) => l.segment === 'HIGH_INTENT_DEPOSIT' || l.segment === 'PIX_READY').length;
+const myVerified= myLeads.filter((l) => l.segment === 'DOCS_VERIFIED').length;
+const myFailed  = myLeads.filter((l) => l.segment === 'FAILED_DEPOSIT').length;
+const myWA      = myLeads.filter((l) => l.segment === 'SKIP_ACTIVE').length;
+const myConv    = ((myVerified / myLeads.length) * 100).toFixed(1);
+
+// Segment pie data (top 6)
+const segPieData = SEG_META.slice(0, 6).map((s) => ({
+  name: s.label,
+  value: myLeads.filter((l) => l.segment === s.key).length,
+  color: s.color,
+})).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
 
 // ─── Automation agent definitions ─────────────────────────────────────────────
 // IDs MUST match dashboard_server.py agent keys exactly
@@ -431,61 +427,25 @@ function AutoAgentCard({
   );
 }
 
-// ─── Human agent row ──────────────────────────────────────────────────────────
+// ─── Stat pill ────────────────────────────────────────────────────────────────
 
 function StatPill({ value, label, color }: { value: string | number; label: string; color: string }) {
   return (
-    <div className="text-center min-w-[44px]">
-      <div className="text-[15px] font-bold" style={{ color, fontFamily: 'JetBrains Mono, monospace' }}>{value}</div>
-      <div className="text-[9px] uppercase tracking-wider" style={{ color: '#334155' }}>{label}</div>
+    <div className="rounded-xl p-4 text-center" style={{ background: '#02040a', border: '1px solid var(--border)' }}>
+      <div className="text-2xl font-bold mb-0.5" style={{ color, fontFamily: 'JetBrains Mono, monospace' }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wider" style={{ color: '#334155' }}>{label}</div>
     </div>
   );
 }
 
-function ReassignDropdown({ currentAgent }: { currentAgent: string }) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-        style={{ background: '#6366f122', border: '1px solid #6366f144', color: '#818cf8' }}
-      >
-        <RefreshCw size={11} />
-        {selected ?? 'Reassign'}
-        <ChevronDown size={10} />
-      </button>
-      {open && (
-        <div
-          className="absolute top-full mt-1 right-0 z-50 rounded-xl py-1 w-36"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-        >
-          {AGENTS.filter((a) => a !== currentAgent).map((a) => (
-            <button
-              key={a}
-              className="w-full text-left px-3 py-2 text-[11px] font-medium hover:bg-white/5"
-              style={{ color: '#94a3b8' }}
-              onClick={() => { setSelected(a); setOpen(false); }}
-            >
-              {a}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
 
-// ─── Chart tooltip ────────────────────────────────────────────────────────────
-
-function ChartTip({ active, payload, label }: any) {
+function ChartTip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg px-3 py-2 text-[11px]" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-      <div className="font-bold text-white mb-1">{label}</div>
       {payload.map((p: any) => (
-        <div key={p.name} style={{ color: p.color }}>{p.name}: <span className="font-bold">{p.value}</span></div>
+        <div key={p.name} style={{ color: p.payload.color }}>{p.name}: <span className="font-bold">{p.value}</span></div>
       ))}
     </div>
   );
@@ -498,12 +458,8 @@ export function AgentControlsView({
 }: {
   onToast: (type: 'success' | 'error' | 'info', msg: string) => void;
 }) {
-  const [activeStates, setActiveStates] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(AGENTS.map((a) => [a, a !== 'Unassigned']))
-  );
   const [backendAgents, setBackendAgents] = useState<Record<string, AgentProcess> | null>(null);
 
-  // Poll /api/agents every 5 seconds
   useEffect(() => {
     const poll = async () => {
       const res = await api.agents();
@@ -514,41 +470,42 @@ export function AgentControlsView({
     return () => clearInterval(t);
   }, []);
 
-  const toggleAgent = (name: string) => setActiveStates((s) => ({ ...s, [name]: !s[name] }));
-
-  const activeCount = Object.entries(activeStates).filter(([k, v]) => v && k !== 'Unassigned').length;
-  const avgConv = (
-    agentStats.filter(a => a.name !== 'Unassigned')
-      .reduce((s, a) => s + parseFloat(a.convRate), 0) / (AGENTS.length - 1)
-  ).toFixed(1);
-
-  // Count running automation agents
   const runningAutoCount = backendAgents
     ? AUTO_AGENTS.filter(a => backendAgents[a.id]?.running).length
     : AUTO_AGENTS.filter(a => a.id !== 'wa_reply').length;
 
-  const barData = agentStats.map((a) => ({ name: a.name.split(' ')[0], Total: a.total, color: a.color }));
-
   return (
     <div className="p-6 space-y-6">
 
-      {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: 'Human Agents',     value: AGENTS.length - 1,     icon: Users,        color: '#6366f1' },
-          { label: 'Agents Active',    value: activeCount,            icon: CheckCircle2, color: '#10b981' },
-          { label: 'Total Leads',      value: MOCK_LEADS.length,      icon: Zap,          color: '#8b5cf6' },
-          { label: 'Avg Conv. Rate',   value: `${avgConv}%`,          icon: TrendingUp,   color: '#f97316' },
-        ].map((k) => (
-          <div key={k.label} className="rounded-xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: k.color + '22', color: k.color }}>
-              <k.icon size={17} />
-            </div>
-            <div className="text-3xl font-bold text-white leading-none mb-1"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}>{k.value}</div>
-            <div className="text-[11px]" style={{ color: '#64748b' }}>{k.label}</div>
+      {/* ── Benjamin's Stats ── */}
+      <div className="grid grid-cols-3 gap-4">
+
+        {/* Profile card */}
+        <div className="rounded-xl p-6 flex items-center gap-5" style={{ background: 'var(--card)', border: '1px solid #6366f144', boxShadow: '0 0 24px #6366f10d' }}>
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shrink-0"
+            style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff' }}
+          >
+            BE
           </div>
-        ))}
+          <div>
+            <div className="text-white font-bold text-lg leading-tight">Benjamin</div>
+            <div className="text-[11px] mb-2" style={{ color: '#475569' }}>Account Manager · FXGLOBE</div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#10b981' }} />
+              <span className="text-[11px] font-semibold" style={{ color: '#10b981' }}>Online</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI grid */}
+        <div className="col-span-2 grid grid-cols-5 gap-3">
+          <StatPill value={myLeads.length}    label="Total Leads"  color="#6366f1" />
+          <StatPill value={myHot}             label="Hot Leads"    color="#f97316" />
+          <StatPill value={myVerified}        label="Verified"     color="#10b981" />
+          <StatPill value={myFailed}          label="Failed Dep."  color="#ef4444" />
+          <StatPill value={`${myConv}%`}      label="Conv. Rate"   color="#8b5cf6" />
+        </div>
       </div>
 
       {/* ── Automation Agents ── */}
@@ -579,115 +536,63 @@ export function AgentControlsView({
         </div>
       </div>
 
-      {/* ── Human Agent Roster ── */}
+      {/* ── Bottom row: Segment breakdown + Integrations ── */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
-          <div className="flex items-center gap-2 mb-3">
-            <Users size={13} style={{ color: '#6366f1' }} />
-            <div className="text-[11px] tracking-widest uppercase" style={{ color: '#6366f1', fontFamily: 'JetBrains Mono, monospace' }}>
-              Human Agent Roster
-            </div>
+
+        {/* Segment pie */}
+        <div className="rounded-xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <div className="text-[11px] tracking-widest uppercase mb-4" style={{ color: '#6366f1', fontFamily: 'JetBrains Mono, monospace' }}>
+            My Top Segments
           </div>
-          <div className="space-y-2.5">
-            {agentStats.map((agent) => {
-              const isActive = activeStates[agent.name] ?? false;
-              return (
-                <div
-                  key={agent.name}
-                  className="rounded-xl p-4 transition-all"
-                  style={{
-                    background: 'var(--card)',
-                    border: `1px solid ${isActive ? 'var(--border)' : 'transparent'}`,
-                    opacity: isActive ? 1 : 0.45,
-                  }}
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
-                      style={{ background: agent.color + '22', color: agent.color, border: `1px solid ${agent.color}44` }}
-                    >
-                      {agent.name.slice(0, 2).toUpperCase()}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-white text-[13px]">{agent.name}</div>
-                      <div className="text-[10px] flex items-center gap-2" style={{ color: '#475569', fontFamily: 'JetBrains Mono, monospace' }}>
-                        Account Manager · {agent.total} leads
-                        {agent.topMeta && (
-                          <span>·&nbsp;<span style={{ color: agent.topMeta.color }}>{agent.topMeta.icon} {agent.topMeta.label} ({agent.topCount})</span></span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-5">
-                      <StatPill value={agent.hot}            label="Hot"      color="#f97316" />
-                      <StatPill value={agent.verified}       label="Verified" color="#10b981" />
-                      <StatPill value={agent.failed}         label="Failed"   color="#ef4444" />
-                      <StatPill value={agent.convRate + '%'} label="Conv"     color="#8b5cf6" />
-                    </div>
-
-                    <button
-                      onClick={() => toggleAgent(agent.name)}
-                      className="relative w-10 h-5 rounded-full transition-all shrink-0"
-                      style={{ background: isActive ? '#10b981' : '#1e293b' }}
-                    >
-                      <div
-                        className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
-                        style={{ left: isActive ? '20px' : '2px' }}
-                      />
-                    </button>
-
-                    <ReassignDropdown currentAgent={agent.name} />
-                  </div>
+          <ResponsiveContainer width="100%" height={140}>
+            <PieChart>
+              <Pie data={segPieData} dataKey="value" cx="50%" cy="50%" innerRadius={38} outerRadius={60} paddingAngle={3}>
+                {segPieData.map((d, i) => <PieCell key={i} fill={d.color} />)}
+              </Pie>
+              <ReTooltip content={<ChartTip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="space-y-1.5 mt-2">
+            {segPieData.slice(0, 4).map((d) => (
+              <div key={d.name} className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ background: d.color }} />
+                  <span style={{ color: '#64748b' }}>{d.name}</span>
                 </div>
-              );
-            })}
+                <span className="font-bold" style={{ color: d.color, fontFamily: 'JetBrains Mono, monospace' }}>{d.value}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right column */}
-        <div className="space-y-4">
-          <div className="rounded-xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-            <div className="text-[11px] tracking-widest uppercase mb-4" style={{ color: '#6366f1', fontFamily: 'JetBrains Mono, monospace' }}>
-              Lead Distribution
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={barData} layout="vertical" barSize={9}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#11182766" horizontal={false} />
-                <XAxis type="number" tick={{ fill: '#334155', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
-                <Tooltip content={<ChartTip />} />
-                <Bar dataKey="Total" radius={[0, 4, 4, 0]} name="Total">
-                  {barData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Integrations */}
+        <div className="col-span-2 rounded-xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <div className="text-[11px] tracking-widest uppercase mb-4" style={{ color: '#6366f1', fontFamily: 'JetBrains Mono, monospace' }}>
+            Integrations
           </div>
-
-          {/* Integrations */}
-          <div className="rounded-xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-            <div className="text-[11px] tracking-widest uppercase mb-4" style={{ color: '#6366f1', fontFamily: 'JetBrains Mono, monospace' }}>
-              Integrations
-            </div>
-            <div className="space-y-3">
-              {[
-                { label: 'GAMBA CRM API',  ok: true,  ping: '42ms',  url: 'crmbeta.gambacrm.com' },
-                { label: 'WhatsApp Cloud', ok: true,  ping: '88ms',  url: 'wa.me' },
-                { label: 'SMTP Relay',     ok: true,  ping: '31ms',  url: 'smtp relay' },
-                { label: 'AI / Gemini',    ok: true,  ping: '67ms',  url: 'generativelanguage.googleapis.com' },
-                { label: 'Node WA Bridge', ok: backendAgents !== null, ping: backendAgents ? '—' : 'offline', url: ':3000' },
-              ].map((s) => (
-                <div key={s.label} className="flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-2">
-                    {s.ok ? <Wifi size={12} style={{ color: '#10b981' }} /> : <WifiOff size={12} style={{ color: '#ef4444' }} />}
-                    <span style={{ color: '#64748b' }}>{s.label}</span>
-                  </div>
-                  <span className="font-bold" style={{ color: s.ok ? '#10b981' : '#ef4444', fontFamily: 'JetBrains Mono, monospace' }}>
-                    {s.ok ? s.ping : 'offline'}
-                  </span>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'GAMBA CRM API',   ok: true,                   ping: '42ms'  },
+              { label: 'WhatsApp Cloud',  ok: true,                   ping: '88ms'  },
+              { label: 'SMTP Relay',      ok: true,                   ping: '31ms'  },
+              { label: 'AI / Gemini',     ok: true,                   ping: '67ms'  },
+              { label: 'Node WA Bridge',  ok: backendAgents !== null, ping: backendAgents ? 'OK' : 'offline' },
+              { label: 'Python Backend',  ok: backendAgents !== null, ping: backendAgents ? 'OK' : 'offline' },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ background: '#02040a', border: `1px solid ${s.ok ? '#10b98122' : '#ef444422'}` }}
+              >
+                <div className="flex items-center gap-2">
+                  {s.ok ? <Wifi size={12} style={{ color: '#10b981' }} /> : <WifiOff size={12} style={{ color: '#ef4444' }} />}
+                  <span className="text-[11px]" style={{ color: '#64748b' }}>{s.label}</span>
                 </div>
-              ))}
-            </div>
+                <span className="text-[11px] font-bold" style={{ color: s.ok ? '#10b981' : '#ef4444', fontFamily: 'JetBrains Mono, monospace' }}>
+                  {s.ok ? s.ping : 'offline'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
