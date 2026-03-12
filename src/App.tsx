@@ -3,6 +3,11 @@ import { Zap, Bot, ClipboardList, MessageCircle, BarChart2, Monitor, Rocket } fr
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './types';
 import { PipelineView } from './PipelineView';
+import { OverviewView } from './OverviewView';
+import { AgentControlsView } from './AgentControlsView';
+import { WhatsAppView } from './WhatsAppView';
+import { EmailAnalyticsView } from './EmailAnalyticsView';
+import { FullMonitorView } from './FullMonitorView';
 
 type View = 'overview' | 'agents' | 'pipeline' | 'whatsapp' | 'email' | 'monitor';
 
@@ -14,14 +19,6 @@ const NAV = [
   { id: 'email'     as View, label: 'Email Analytics',icon: BarChart2 },
   { id: 'monitor'   as View, label: 'Full Monitor',   icon: Monitor },
 ];
-
-function ComingSoon({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-64 font-mono text-sm" style={{ color: '#334155' }}>
-      {label} — coming soon
-    </div>
-  );
-}
 
 export default function App() {
   const [activeView, setActiveView] = useState<View>('pipeline');
@@ -162,7 +159,12 @@ export default function App() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
             >
-              {activeView === 'pipeline' ? <PipelineView /> : <ComingSoon label={NAV.find((n) => n.id === activeView)?.label ?? ''} />}
+              {activeView === 'overview'  && <OverviewView />}
+              {activeView === 'agents'   && <AgentControlsView />}
+              {activeView === 'pipeline' && <PipelineView />}
+              {activeView === 'whatsapp' && <WhatsAppView />}
+              {activeView === 'email'    && <EmailAnalyticsView />}
+              {activeView === 'monitor'  && <FullMonitorView />}
             </motion.div>
           </AnimatePresence>
         </main>
