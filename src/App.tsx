@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Zap, Bot, ClipboardList, MessageCircle, BarChart2, Monitor, Rocket, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { Zap, Bot, ClipboardList, MessageCircle, BarChart2, Monitor, Rocket, CheckCircle2, AlertTriangle, X, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './types';
 import { PipelineView } from './PipelineView';
@@ -8,9 +8,10 @@ import { AgentControlsView } from './AgentControlsView';
 import { WhatsAppView } from './WhatsAppView';
 import { EmailAnalyticsView } from './EmailAnalyticsView';
 import { FullMonitorView } from './FullMonitorView';
+import { TradingViewPage } from './TradingView';
 import { api } from './api';
 
-type View = 'overview' | 'agents' | 'pipeline' | 'whatsapp' | 'email' | 'monitor';
+type View = 'overview' | 'agents' | 'pipeline' | 'whatsapp' | 'email' | 'monitor' | 'trading';
 
 const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'overview',  label: 'Overview',        icon: Zap },
@@ -18,6 +19,7 @@ const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',  label: 'Lead Pipeline',   icon: ClipboardList },
   { id: 'whatsapp',  label: 'WhatsApp',        icon: MessageCircle },
   { id: 'email',     label: 'Email Analytics', icon: BarChart2 },
+  { id: 'trading',   label: 'TradingView',     icon: TrendingUp },
   { id: 'monitor',   label: 'Full Monitor',    icon: Monitor },
 ];
 
@@ -289,6 +291,7 @@ export default function App() {
               {activeView === 'pipeline'  && <PipelineView />}
               {activeView === 'whatsapp'  && <WhatsAppView />}
               {activeView === 'email'     && <EmailAnalyticsView />}
+              {activeView === 'trading'   && <TradingViewPage />}
               {activeView === 'monitor'   && <FullMonitorView />}
             </motion.div>
           </AnimatePresence>
