@@ -13,7 +13,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-import os, sys, smtplib, time, json, urllib.request, urllib.parse
+import os, sys, smtplib, imaplib, time, json, urllib.request, urllib.parse
 from email.mime.multipart import MIMEMultipart
 from email.mime.text      import MIMEText
 from datetime             import datetime
@@ -45,6 +45,20 @@ FROM_EMAIL   = os.environ.get("FROM_EMAIL",   SMTP_USER)
 CRM_TOKEN    = os.environ.get("CRM_TOKEN",    os.environ.get("CRM_API_KEY", ""))
 CRM_BASE     = os.environ.get("CRM_BASE_URL", "https://crmbeta.gambacrm.com")
 BLACK_ARROW_LINK = os.environ.get("BLACK_ARROW_LINK", "https://fxglobe.com/black-arrow")
+
+# IMAP — saves sent emails to Outlook Sent Items
+# Auto-detected from SMTP_HOST; override with IMAP_HOST / IMAP_SENT_FOLDER in .env
+def _default_imap_host():
+    h = os.environ.get("SMTP_HOST", "")
+    if "office365" in h or "outlook" in h or "microsoft" in h:
+        return "outlook.office365.com"
+    if "gmail" in h:
+        return "imap.gmail.com"
+    return h.replace("smtp.", "imap.", 1) if h.startswith("smtp.") else h
+
+IMAP_HOST        = os.environ.get("IMAP_HOST",        _default_imap_host())
+IMAP_PORT        = int(os.environ.get("IMAP_PORT",    "993"))
+IMAP_SENT_FOLDER = os.environ.get("IMAP_SENT_FOLDER", "Sent Items")  # Outlook default; Gmail = "[Gmail]/Sent Mail"
 
 DRY_RUN = "--dry-run" in sys.argv
 
@@ -233,15 +247,45 @@ def build_email_html(first_name: str) -> str:
 </body>
 </html>"""
 
+# ── IMAP — save to Sent Items ──────────────────────────────────────────────────
+
+def connect_imap() -> imaplib.IMAP4_SSL | None:
+    """Connect to IMAP so we can append to Sent Items. Returns None on failure."""
+    if not IMAP_HOST:
+        return None
+    try:
+        imap = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT)
+        imap.login(SMTP_USER, SMTP_PASS)
+        return imap
+    except Exception as e:
+        log(f"  IMAP connect failed (sent folder save disabled): {e}")
+        return None
+
+def imap_save_sent(imap: imaplib.IMAP4_SSL | None, raw_msg: bytes):
+    """Append the raw message bytes to the Sent Items folder."""
+    if imap is None:
+        return
+    try:
+        imap.append(
+            IMAP_SENT_FOLDER,
+            "\\Seen",
+            imaplib.Time2Internaldate(time.time()),
+            raw_msg,
+        )
+    except Exception as e:
+        log(f"  IMAP append failed: {e}")
+
 # ── Send one email ─────────────────────────────────────────────────────────────
 
-def send_email(to_email: str, to_name: str, smtp: smtplib.SMTP) -> bool:
+def build_message(to_email: str, to_name: str) -> tuple[str, bytes]:
+    """Returns (subject, raw_bytes) for the email."""
     first_name = to_name.split()[0] if to_name else to_email.split("@")[0]
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"✅ {first_name}, sua documentação foi aprovada — ative seu Black Arrow"
     msg["From"]    = f"{FROM_NAME} <{FROM_EMAIL}>"
     msg["To"]      = f"{to_name} <{to_email}>" if to_name else to_email
+    msg["Date"]    = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
 
     text_body = (
         f"Parabéns {first_name}!\n\n"
@@ -254,8 +298,12 @@ def send_email(to_email: str, to_name: str, smtp: smtplib.SMTP) -> bool:
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(build_email_html(first_name), "html", "utf-8"))
 
-    smtp.sendmail(FROM_EMAIL, to_email, msg.as_string())
-    return True
+    return msg["Subject"], msg.as_bytes()
+
+def send_email(to_email: str, to_name: str, smtp: smtplib.SMTP, imap: imaplib.IMAP4_SSL | None):
+    _, raw = build_message(to_email, to_name)
+    smtp.sendmail(FROM_EMAIL, to_email, raw)
+    imap_save_sent(imap, raw)   # ← saves to Outlook Sent Items
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
@@ -311,6 +359,14 @@ def main():
         log(f"SMTP connection failed: {e}")
         sys.exit(1)
 
+    # Connect IMAP (saves sent emails to Outlook Sent Items)
+    log(f"Connecting to IMAP {IMAP_HOST}:{IMAP_PORT} → folder '{IMAP_SENT_FOLDER}'…")
+    imap = connect_imap()
+    if imap:
+        log("IMAP connected ✓ — sent emails will appear in Sent Items")
+    else:
+        log("IMAP unavailable — emails will send but won't appear in Sent Items")
+
     # Send emails
     sent = 0
     failed = 0
@@ -322,7 +378,7 @@ def main():
         name  = lead.get("name", lead.get("full_name", ""))
 
         try:
-            send_email(email, name, smtp)
+            send_email(email, name, smtp, imap)
             log(f"  [{i}/{len(sendable)}] ✓  {name} <{email}>")
             sent += 1
             time.sleep(0.4)   # ~2.5 emails/sec — safe for most SMTP limits
@@ -332,6 +388,9 @@ def main():
             time.sleep(1)
 
     smtp.quit()
+    if imap:
+        try: imap.logout()
+        except Exception: pass
 
     log("─" * 40)
     log(f"DONE — {sent} sent | {failed} failed | {skipped} skipped (no email)")
