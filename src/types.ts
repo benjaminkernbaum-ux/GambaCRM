@@ -100,7 +100,7 @@ const _LAST = [
   'Carvalho','Nunes','Vieira','Borges','Mendes','Barbosa','Pinto','Moreira','Castro','Pereira',
   'Cardoso','Nascimento','Araújo','Ribeiro','Gomes','Teixeira','Correia','Machado','Rezende','Brito',
 ];
-export const AGENTS = ['Benjamin', 'Sistema', 'Unassigned'];
+export const AGENTS = ['Agente', 'Sistema', 'Unassigned'];
 const _DOMAINS = ['gmail.com','hotmail.com','yahoo.com.br','outlook.com','icloud.com'];
 const _DDD     = ['11','21','31','41','51','61','71','81','85','92'];
 

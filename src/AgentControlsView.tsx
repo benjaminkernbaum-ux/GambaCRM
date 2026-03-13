@@ -11,9 +11,9 @@ import {
 import { MOCK_LEADS, SEG_META } from './types';
 import { api, AgentProcess } from './api';
 
-// ─── Benjamin's stats (all leads = single agent) ──────────────────────────────
+// ─── Agent stats ──────────────────────────────────────────────────────────────
 
-const myLeads   = MOCK_LEADS; // all leads belong to Benjamin
+const myLeads   = MOCK_LEADS;
 const myHot     = myLeads.filter((l) => l.segment === 'HIGH_INTENT_DEPOSIT' || l.segment === 'PIX_READY').length;
 const myVerified= myLeads.filter((l) => l.segment === 'DOCS_VERIFIED').length;
 const myFailed  = myLeads.filter((l) => l.segment === 'FAILED_DEPOSIT').length;
@@ -477,7 +477,7 @@ export function AgentControlsView({
   return (
     <div className="p-6 space-y-6">
 
-      {/* ── Benjamin's Stats ── */}
+      {/* ── Agent Stats ── */}
       <div className="grid grid-cols-3 gap-4">
 
         {/* Profile card */}
@@ -486,11 +486,11 @@ export function AgentControlsView({
             className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shrink-0"
             style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff' }}
           >
-            BE
+            FX
           </div>
           <div>
-            <div className="text-white font-bold text-lg leading-tight">Benjamin</div>
-            <div className="text-[11px] mb-2" style={{ color: '#475569' }}>Account Manager · FXGLOBE</div>
+            <div className="text-white font-bold text-lg leading-tight">Account Manager</div>
+            <div className="text-[11px] mb-2" style={{ color: '#475569' }}>Automation Suite · FXGLOBE</div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#10b981' }} />
               <span className="text-[11px] font-semibold" style={{ color: '#10b981' }}>Online</span>

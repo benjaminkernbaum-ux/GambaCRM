@@ -145,10 +145,10 @@ export default function App() {
               className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-black text-white shrink-0"
               style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}
             >
-              B
+              FX
             </div>
             <div>
-              <div className="text-[13px] font-bold text-white leading-tight">Benjamin's Nexus</div>
+              <div className="text-[13px] font-bold text-white leading-tight">FXGLOBE Nexus</div>
               <div
                 className="text-[9px] tracking-widest uppercase"
                 style={{ color: '#475569', fontFamily: 'JetBrains Mono, monospace' }}
@@ -249,7 +249,7 @@ export default function App() {
                 {timeStr}
               </div>
               <div className="text-[11px] mt-1" style={{ color: '#475569' }}>{dateStr}</div>
-              <div className="text-[11px]" style={{ color: '#475569' }}>Benjamin · Account Manager</div>
+              <div className="text-[11px]" style={{ color: '#475569' }}>Account Manager · FXGLOBE</div>
             </div>
 
             {/* Launch Suite */}
