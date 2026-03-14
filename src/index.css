@@ -20,3 +20,36 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Premium glow effects */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: all 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.08);
+}
+
+/* Smooth scrollbar for dark theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b transparent;
+}
